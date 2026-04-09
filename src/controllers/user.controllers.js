@@ -1,13 +1,86 @@
-import { log } from "console";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { User } from "../models/user.model.js";
 import { uploadToCloudinary } from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 
-
-
 const registerUser = asyncHandler(async (req, res) => {
+
+    const { fullName, email, username, password } = req.body;
+
+    // ✅ Validate fields
+    if ([fullName, email, username, password].some(field => !field?.trim())) {
+        throw new ApiError(400, "All fields are required");
+    }
+
+    // ✅ Check existing user
+    const existingUser = await User.findOne({
+        $or: [{ username }, { email }]
+    });
+
+    if (existingUser) {
+        throw new ApiError(400, "User already exists");
+    }
+    console.log(req.files);
+
+    // ✅ Get file paths
+    const avatarLocalPath = req.files?.avatar?.[0]?.path;
+    const coverImageLocalPath = req.files?.coverImage?.[0]?.path;
+    console.log("👉 Avatar path:", avatarLocalPath);
+    console.log("👉 Cover path:", coverImageLocalPath);
+
+    if (!avatarLocalPath) {
+        throw new ApiError(400, "Avatar is required");
+    }
+
+    console.log("📂 Files:", req.files);
+
+    // ✅ Upload avatar
+    const avatar = await uploadToCloudinary(avatarLocalPath);
+
+    if (!avatar?.url) {
+        throw new ApiError(500, "Failed to upload avatar");
+    }
+
+    // ✅ Upload cover image (optional)
+    let coverImageUrl = "";
+    if (coverImageLocalPath) {
+        const coverImage = await uploadToCloudinary(coverImageLocalPath);
+        coverImageUrl = coverImage?.url || "";
+    }
+
+    // ✅ Create user
+    const user = await User.create({
+        fullname: fullName,
+        avatar: avatar.url,
+        coverImage: coverImageUrl,
+        email,
+        username: username.toLowerCase(),
+        password
+    });
+
+    // ✅ Remove sensitive fields
+    const createdUser = await User.findById(user._id).select(
+        "-password -refreshToken -__v"
+    );
+
+    if (!createdUser) {
+        throw new ApiError(500, "User creation failed");
+    }
+
+    // ✅ Send response
+    return res.status(201).json(
+        new ApiResponse(201, createdUser, "User registered successfully")
+    );
+});
+
+export { registerUser };
+
+
+
+
+
+
  // res.status(200).json({
   //  message: "OK"
  // });
@@ -31,69 +104,3 @@ const registerUser = asyncHandler(async (req, res) => {
  //     user:createdUser,
  //   }
  // })
-
- const {fullName, email, username, password} = req.body
- console.log("email: ", email);
-/*
- if(fullName === ""){
-    throw new ApiError(400,"Full name is required");
- }
- if(email === ""){
-    throw new ApiError(400,"Email is required");
- }
- if(username === ""){
-    throw new ApiError(400,"Username is required");
- }
- if(password === ""){
-    throw new ApiError(400,"Password is required");
- }
-*/
-if(
-    [fullName,email,username,password].some((field)=>
-    field ?.trim()===""
-)){
-    throw new ApiError(400,"All fields are required");
-}
-
-const existingUser = await User.findOne({
-    $or:[
-        {username},
-        {email}
-    ]
-})
-if(existingUser){
-    throw new ApiError(400,"User with this username or email already exists");  
-}
-const avatarLocalPath = req.files?.avatar[0]?.path;
-const coverImageLocalPath = req.files?.coverImage[0]?.path;
-if(!avatarLocalPath ){
-    throw new ApiError(400,"Avatar is required");
-}
-const avatar=await uploadToCloudinary(avatarLocalPath);
-const coverImage = await uploadToCloudinary(coverImageLocalPath);
-if(!avatar){
-    throw new ApiError(500,"Failed to upload avatar");
-}
-const User =await User.create({//database me user create karna hai
-    fullName,
-    avatar:avatar.url,
-    coverImage:coverImage?.url || "",
-    email,  
-    username:username.tolowerCase(),
-    password
-})
-const createdUser = await User.findById(User._id).select(
-    "-password -refreshToken -__v  "
-)
-if(!createdUser){
-    throw new ApiError(500,"Failed to create user");    
-
-
-}
-return res.status(201).json(//json response bhejna hai frontend ko to uska format banana hai as api response
-    new ApiResponse(200,createdUser,"User registered successfully"  )//ApiResponse class ka object create karna hai jisme status code, data aur message hoga//createdUser ko data ke roop me bhejna hai aur message me success ka message dena hai
-);//createdUser ka use karna hai data ke roop me aur message me success ka message dena hai
-});
-
-
-export { registerUser };

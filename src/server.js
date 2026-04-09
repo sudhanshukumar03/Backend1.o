@@ -1,12 +1,17 @@
 import dotenv from "dotenv";
-import connectDB from "./config/db.js";
-import { app } from "./app.js";
 
 dotenv.config();
 
+/*
+import dotenv from "dotenv";
+dotenv.config(); // ✅ MUST be first
+*/
+
+import connectDB from "./config/db.js";
+import { app } from "./app.js";
+
 const PORT = process.env.PORT || 8000;
 
-// ✅ Start server only after DB connects
 connectDB()
   .then(() => {
     app.listen(PORT, () => {

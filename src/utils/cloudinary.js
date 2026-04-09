@@ -1,37 +1,49 @@
+
+
 import { v2 as cloudinary } from "cloudinary";
 import fs from "fs";
 
-// config cloudinary
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
+cloudinary.config({ 
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME, 
+  api_key: process.env.CLOUDINARY_API_KEY, 
+  api_secret: process.env.CLOUDINARY_API_SECRET 
 });
 
-// reusable function
 const uploadToCloudinary = async (localFilePath) => {
-  try {
-    if (!localFilePath) return null;
+    console.log("📂 File path received:", localFilePath);
 
-    const response = await cloudinary.uploader.upload(localFilePath, {
-      resource_type: "auto",
-    });
+    try {
+        if (!localFilePath) {
+            console.log("❌ No file path");
+            return null;
+        }
 
-    // delete file after upload
-    if (fs.existsSync(localFilePath)) {
-      fs.unlinkSync(localFilePath);
+        const response = await cloudinary.uploader.upload(localFilePath, {
+            resource_type: "auto"
+        });
+
+        console.log("✅ Uploaded to Cloudinary");
+
+        return response;
+
+    } catch (error) {
+        console.error("❌ Upload error:", error);
+        return null;
+
+    } finally {
+        console.log("🧹 Trying to delete file...");
+
+        try {
+            if (localFilePath && fs.existsSync(localFilePath)) {
+                fs.unlinkSync(localFilePath);
+                console.log("✅ File deleted successfully");
+            } else {
+                console.log("⚠️ File NOT found");
+            }
+        } catch (err) {
+            console.error("❌ Delete error:", err);
+        }
     }
-
-    return response;
-  } catch (error) {
-    // delete file if error
-    if (fs.existsSync(localFilePath)) {
-      fs.unlinkSync(localFilePath);
-    }
-
-    console.error("Cloudinary Error:", error);
-    return null;
-  }
 };
 
 export { uploadToCloudinary };
