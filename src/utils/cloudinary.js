@@ -1,5 +1,3 @@
-
-
 import { v2 as cloudinary } from "cloudinary";
 import fs from "fs";
 
@@ -9,41 +7,34 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET 
 });
 
-const uploadToCloudinary = async (localFilePath) => {
-    console.log("📂 File path received:", localFilePath);
-
+export const uploadToCloudinary = async (localFilePath) => {
     try {
-        if (!localFilePath) {
-            console.log("❌ No file path");
-            return null;
-        }
+        if (!localFilePath) throw new Error("No file path provided");
 
         const response = await cloudinary.uploader.upload(localFilePath, {
             resource_type: "auto"
         });
 
-        console.log("✅ Uploaded to Cloudinary");
+        await fs.promises.unlink(localFilePath);
+        //console.log("Cloudinary Response:", response);
+        //return response;
 
-        return response;
+        //fs.unlinkSync(localFilePath);
+
+        //console.log("Cloudinary Upload Success:", response);
+
+        return {
+            url: response.secure_url,
+            public_id: response.public_id
+        };
 
     } catch (error) {
-        console.error("❌ Upload error:", error);
-        return null;
+        console.error("Cloudinary Error:", error.message);
 
-    } finally {
-        console.log("🧹 Trying to delete file...");
-
-        try {
-            if (localFilePath && fs.existsSync(localFilePath)) {
-                fs.unlinkSync(localFilePath);
-                console.log("✅ File deleted successfully");
-            } else {
-                console.log("⚠️ File NOT found");
-            }
-        } catch (err) {
-            console.error("❌ Delete error:", err);
+        if (localFilePath && fs.existsSync(localFilePath)) {
+            await fs.promises.unlink(localFilePath);
         }
+
+        return null;
     }
 };
-
-export { uploadToCloudinary };
